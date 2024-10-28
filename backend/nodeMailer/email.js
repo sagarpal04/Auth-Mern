@@ -14,3 +14,14 @@ export const sendVerificationEmail = async (email, verificationToken) => {
   };
   sendEmail(mailOptions);
 };
+
+export const sendWelcomeEmail = async (email, name) => {
+  const mailOptions = {
+    from: '"Nexus Bank" <nexus.bank.org@gmail.com>',
+    to: email,
+    subject: "Welcome to Nexus Bank",
+    html: `<p>Welcome to Nexus Bank, ${name}!</p>`,
+    category: "Welcome Email",
+  };
+  sendEmail(mailOptions);
+};

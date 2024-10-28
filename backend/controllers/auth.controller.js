@@ -1,7 +1,11 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
-import { sendVerificationEmail } from "../nodeMailer/email.js";
+import {
+  sendVerificationEmail,
+  sendWelcomeEmail,
+} from "../nodeMailer/email.js";
 export const signup = async (req, res) => {
   const { email, password, name } = req.body;
   try {
@@ -27,6 +31,45 @@ export const signup = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "User created successfully",
+      user: {
+        ...user._doc,
+        password: undefined,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  const { code } = req.body;
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ message: "Authentication token missing" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({
+      _id: decoded.userId,
+      verificationToken: code,
+      verificationTokenExpiresAt: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Invalid verification code or code has expired" });
+    }
+
+    user.verified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpiresAt = undefined;
+    await user.save();
+    await sendWelcomeEmail(user.email, user.name);
+    res.status(200).json({
+      message: "Email verified successfully",
       user: {
         ...user._doc,
         password: undefined,
